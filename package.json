@@ -32,11 +32,3 @@
     "uuid": "^9.0.1"
   }
 }
-```
-
-Luego en PowerShell:
-```
-cd C:\Users\diego\Desktop\PlastiFlow
-rm -r node_modules
-npm install
-npm run build
