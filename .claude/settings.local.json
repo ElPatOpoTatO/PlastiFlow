@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(if not:*)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

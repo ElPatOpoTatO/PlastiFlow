@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/* Dark mode activado con clase .dark en <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Brutalismo: headings en negrita máxima */
+  h1, h2, h3, h4 {
+    font-weight: 800;
+  }
+
+  /* Scrollbar cuadrada y contrastante */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f3f4f6;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 0;
+    background-color: #111827;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #374151;
+  }
+  .dark ::-webkit-scrollbar-track {
+    background: #111827;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: #d1d5db;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: #f9fafb;
+  }
+}
