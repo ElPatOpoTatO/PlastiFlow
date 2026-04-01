@@ -9,7 +9,7 @@ import { useApp } from '../../context/AppContext'
 import { db } from '../../db/database'
 import { calcularDatosOrden } from '../../utils/calculos'
 import { cls } from '../../utils/ui'
-import type { OrdenProduccion, Maquina, RegistroDiario } from '../../types'
+import type { OrdenProduccion, Maquina, RegistroDiario, Molde, Material } from '../../types'
 
 type Vista = 'diaria' | 'semanal' | 'mensual'
 
@@ -240,9 +240,9 @@ export default function Calendario() {
     [perfilActivoId]
   ) ?? []
 
-  const moldeMap = useMemo(() => Object.fromEntries(moldes.map(m   => [m.id, m])), [moldes])
-  const matMap   = useMemo(() => Object.fromEntries(materiales.map(m => [m.id, m])), [materiales])
-  const maqMap   = useMemo(() => Object.fromEntries(maquinas.map(m  => [m.id, m])), [maquinas])
+  const moldeMap = useMemo(() => Object.fromEntries(moldes.map((m: Molde)    => [m.id, m])), [moldes])
+  const matMap   = useMemo(() => Object.fromEntries(materiales.map((m: Material) => [m.id, m])), [materiales])
+  const maqMap   = useMemo(() => Object.fromEntries(maquinas.map((m: Maquina)  => [m.id, m])), [maquinas])
 
   // ── Fecha de hoy ──
   const hoy = useMemo(() => new Date().toISOString().split('T')[0], [])

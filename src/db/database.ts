@@ -2,18 +2,18 @@
 // PlastiFlow — Base de Datos IndexedDB con Dexie.js
 // ============================================================
 
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type Table } from 'dexie'
 import type { Perfil, Maquina, Molde, Cliente, Material, OrdenProduccion, Alerta, RegistroDiario } from '../types'
 
 class PlastiFlowDB extends Dexie {
-  perfiles!: EntityTable<Perfil, 'id'>
-  maquinas!: EntityTable<Maquina, 'id'>
-  moldes!: EntityTable<Molde, 'id'>
-  clientes!: EntityTable<Cliente, 'id'>
-  materiales!: EntityTable<Material, 'id'>
-  ordenes!: EntityTable<OrdenProduccion, 'id'>
-  alertas!: EntityTable<Alerta, 'id'>
-  registrosDiarios!: EntityTable<RegistroDiario, 'id'>
+  perfiles!: Table<Perfil, string>
+  maquinas!: Table<Maquina, string>
+  moldes!: Table<Molde, string>
+  clientes!: Table<Cliente, string>
+  materiales!: Table<Material, string>
+  ordenes!: Table<OrdenProduccion, string>
+  alertas!: Table<Alerta, string>
+  registrosDiarios!: Table<RegistroDiario, string>
 
   constructor() {
     super('PlastiFlowDB')

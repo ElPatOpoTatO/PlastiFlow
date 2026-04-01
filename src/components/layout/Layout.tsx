@@ -9,7 +9,7 @@ import Sidebar from './Sidebar'
 import { useApp } from '../../context/AppContext'
 import { db } from '../../db/database'
 import { useLiveQuery } from 'dexie-react-hooks'
-import type { Perfil } from '../../types'
+import type { Perfil, Alerta } from '../../types'
 
 const STORAGE_KEY_SIDEBAR = 'plastiflow_sidebar_collapsed'
 
@@ -30,7 +30,7 @@ export default function Layout() {
       if (!perfilActivoId) return 0
       return db.alertas
         .where('perfilId').equals(perfilActivoId)
-        .filter(a => !a.vista)
+        .filter((a: Alerta) => !a.vista)
         .count()
     },
     [perfilActivoId]

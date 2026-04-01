@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { useListaPerfiles } from '../../hooks/usePerfiles'
+import type { Perfil } from '../../types'
 
 interface HeaderProps {
   onToggleSidebar: () => void
@@ -110,7 +111,7 @@ export default function Header({
                   No hay perfiles guardados
                 </div>
               ) : (
-                perfiles.map(perfil => {
+                perfiles.map((perfil: Perfil) => {
                   const esActivo = perfil.id === perfilActivoId
                   return (
                     <button

@@ -231,7 +231,7 @@ export default function Configuracion() {
           </div>
         ) : (
           <div className="space-y-3">
-            {perfiles.map(perfil => {
+            {perfiles.map((perfil: Perfil) => {
               const esActivo = perfil.id === perfilActivoId
               return (
                 <div

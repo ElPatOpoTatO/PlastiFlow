@@ -5,7 +5,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '../db/database'
-import type { Perfil, ConfiguracionPerfil } from '../types'
+import type { Perfil, ConfiguracionPerfil, Molde, OrdenProduccion } from '../types'
 
 const CONFIG_DEFAULT: ConfiguracionPerfil = {
   diasAlertaEntrega: 3,
@@ -85,13 +85,13 @@ export async function duplicarPerfil(perfilId: string): Promise<string> {
     })
 
   const nuevasMaquinas = reasignar(maquinas)
-  const nuevosMoldes = reasignar(moldes).map(m => ({
+  const nuevosMoldes = (reasignar(moldes) as Molde[]).map((m: Molde) => ({
     ...m,
-    materialesCompatibles: m.materialesCompatibles.map(mid => idMap[mid] ?? mid),
+    materialesCompatibles: m.materialesCompatibles.map((mid: string) => idMap[mid] ?? mid),
   }))
   const nuevosClientes = reasignar(clientes)
   const nuevosMateriales = reasignar(materiales)
-  const nuevasOrdenes = reasignar(ordenes).map(o => ({
+  const nuevasOrdenes = (reasignar(ordenes) as OrdenProduccion[]).map((o: OrdenProduccion) => ({
     ...o,
     moldeId: idMap[o.moldeId] ?? o.moldeId,
     maquinaId: idMap[o.maquinaId] ?? o.maquinaId,

@@ -23,7 +23,7 @@ export function useOrden(id: string | undefined) {
 
 export async function generarFolio(perfilId: string): Promise<string> {
   const ordenes = await db.ordenes.where('perfilId').equals(perfilId).toArray()
-  const maxNum = ordenes.reduce((max, o) => {
+  const maxNum = ordenes.reduce((max: number, o: OrdenProduccion) => {
     const match = o.folio.match(/(\d+)$/)
     return match ? Math.max(max, parseInt(match[1])) : max
   }, 0)

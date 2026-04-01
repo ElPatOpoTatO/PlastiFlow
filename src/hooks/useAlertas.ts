@@ -23,6 +23,8 @@ function frecuenciaToDias(frecuencia: FrecuenciaOrden): number {
     semanal:      7,
     quincenal:    15,
     mensual:      30,
+    bimestral:    60,
+    trimestral:   90,
     personalizado: 30,
   }
   return map[frecuencia]
