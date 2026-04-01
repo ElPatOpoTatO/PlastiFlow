@@ -8,10 +8,8 @@ interface Props { id?: string; onGuardado?: () => void; onCancelado?: () => void
 type Form = { nombre: string; identificador: string; notas: string }
 type Errores = Partial<Record<keyof Form, string>>
 
-function validar(f: Form): Errores {
-  const e: Errores = {}
-  if (!f.nombre.trim()) e.nombre = 'El nombre es requerido'
-  return e
+function validar(_f: Form): Errores {
+  return {}
 }
 
 export default function ClientesFormulario({ id, onGuardado, onCancelado }: Props) {
@@ -71,7 +69,7 @@ export default function ClientesFormulario({ id, onGuardado, onCancelado }: Prop
       <div className={`${cls.card} p-6 space-y-5`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className={cls.label}>Nombre / Empresa <span className="text-red-500">*</span></label>
+            <label className={cls.label}>Nombre / Empresa</label>
             <input
               placeholder="Ej. Envases del Norte S.A."
               value={form.nombre}

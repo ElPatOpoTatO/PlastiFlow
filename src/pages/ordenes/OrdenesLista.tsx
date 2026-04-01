@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useOrdenes, eliminarOrden } from '../../hooks/useOrdenes'
 import { useMoldes } from '../../hooks/useMoldes'
 import { useMateriales } from '../../hooks/useMateriales'
+import { useMaquinas } from '../../hooks/useMaquinas'
 import { useClientes } from '../../hooks/useClientes'
 import { useApp } from '../../context/AppContext'
 import { calcularDatosOrden, formatearFecha, formatearNumero } from '../../utils/calculos'
@@ -35,6 +36,7 @@ export default function OrdenesLista() {
   const ordenes = useOrdenes(perfilActivoId)
   const moldes = useMoldes(perfilActivoId)
   const materiales = useMateriales(perfilActivoId)
+  const maquinas = useMaquinas(perfilActivoId)
   const clientes = useClientes(perfilActivoId)
 
   const [filtroEstado, setFiltroEstado] = useState<EstadoOrden | 'todos'>('todos')
@@ -50,6 +52,7 @@ export default function OrdenesLista() {
   // Mapas para lookup rápido
   const moldeMap = useMemo(() => Object.fromEntries(moldes.map(m => [m.id, m])), [moldes])
   const materialMap = useMemo(() => Object.fromEntries(materiales.map(m => [m.id, m])), [materiales])
+  const maquinaMap = useMemo(() => Object.fromEntries(maquinas.map(m => [m.id, m])), [maquinas])
   const clienteMap = useMemo(() => Object.fromEntries(clientes.map(c => [c.id, c.nombre])), [clientes])
 
   // Calcular holgura de todas las órdenes
@@ -58,10 +61,11 @@ export default function OrdenesLista() {
     for (const o of ordenes) {
       const molde = moldeMap[o.moldeId]
       const material = materialMap[o.materialId]
-      map[o.id] = molde && material ? calcularDatosOrden(o, molde, material) : null
+      const maquina = maquinaMap[o.maquinaId]
+      map[o.id] = molde && material ? calcularDatosOrden(o, molde, material, maquina) : null
     }
     return map
-  }, [ordenes, moldeMap, materialMap])
+  }, [ordenes, moldeMap, materialMap, maquinaMap])
 
   const filtradas = useMemo(() => ordenes.filter(o => {
     if (filtroEstado !== 'todos' && o.estado !== filtroEstado) return false

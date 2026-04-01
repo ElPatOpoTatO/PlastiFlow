@@ -172,7 +172,7 @@ export default function Estadisticas() {
       const molde = moldeMap[o.moldeId]
       const material = materialMap[o.materialId]
       if (!molde || !material) continue
-      const calc = calcularDatosOrden(o, molde, material)
+      const calc = calcularDatosOrden(o, molde, material, maquinaMap[o.maquinaId])
       const mes = o.fechaEntrega.slice(0, 7) // YYYY-MM
       if (!porMes[mes]) porMes[mes] = { materialNeto: 0, merma: 0 }
       porMes[mes].materialNeto += calc.materialNetoKg
@@ -181,7 +181,7 @@ export default function Estadisticas() {
     return Object.entries(porMes)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([mes, v]) => ({ mes: mesLabel(mes), ...v }))
-  }, [ordenesEnRango, moldeMap, materialMap])
+  }, [ordenesEnRango, moldeMap, materialMap, maquinaMap])
 
   // ── Reporte 4: Gantt ──────────────────────
   const dataGantt = useMemo(() => {
@@ -192,7 +192,7 @@ export default function Estadisticas() {
       const molde = moldeMap[o.moldeId]
       const material = materialMap[o.materialId]
       if (!molde || !material) continue
-      const calc = calcularDatosOrden(o, molde, material)
+      const calc = calcularDatosOrden(o, molde, material, maquinaMap[o.maquinaId])
       resultado.push({
         folio: o.folio,
         producto: o.producto.length > 20 ? o.producto.slice(0, 20) + '…' : o.producto,
@@ -205,7 +205,7 @@ export default function Estadisticas() {
       })
     }
     return resultado.sort((a, b) => a.fechaInicio.localeCompare(b.fechaInicio)).slice(0, 20)
-  }, [ordenes, moldeMap, materialMap, fechaDesde])
+  }, [ordenes, moldeMap, materialMap, maquinaMap, fechaDesde])
 
   // ── Helpers de color ──────────────────────
   const COLORS_MAQUINAS = ['#3b82f6', '#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ef4444']

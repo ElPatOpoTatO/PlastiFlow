@@ -32,8 +32,8 @@ export default function OrdenesDetalle({ id }: Props) {
 
   const calculos = useMemo(() => {
     if (!orden || !molde || !material) return null
-    return calcularDatosOrden(orden, molde, material)
-  }, [orden, molde, material])
+    return calcularDatosOrden(orden, molde, material, maquina)
+  }, [orden, molde, material, maquina])
 
   if (orden === undefined) return <div className="p-6 text-sm text-gray-400">Cargando...</div>
   if (!orden) {

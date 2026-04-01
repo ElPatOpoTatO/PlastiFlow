@@ -36,6 +36,7 @@ export default function Configuracion() {
   const [cargandoOp, setCargandoOp] = useState<Record<string, boolean>>({})
 
   const inputImportRef = useRef<HTMLInputElement>(null)
+  const [arrastrando, setArrastrando] = useState(false)
 
   const mostrarExito = (msg: string) => {
     setMensajeExito(msg)
@@ -103,11 +104,7 @@ export default function Configuracion() {
   }
 
   // Importar perfil
-  const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0]
-    if (!archivo) return
-    e.target.value = ''
-
+  const procesarArchivoImport = async (archivo: File) => {
     setCargando('importar', true)
     try {
       const resultado = await importarPerfil(archivo)
@@ -119,6 +116,24 @@ export default function Configuracion() {
     } finally {
       setCargando('importar', false)
     }
+  }
+
+  const handleImportar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const archivo = e.target.files?.[0]
+    if (!archivo) return
+    e.target.value = ''
+    await procesarArchivoImport(archivo)
+  }
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setArrastrando(false)
+    const archivo = e.dataTransfer.files[0]
+    if (!archivo || !archivo.name.endsWith('.plastiflow')) {
+      mostrarError('Solo se aceptan archivos .plastiflow')
+      return
+    }
+    await procesarArchivoImport(archivo)
   }
 
   return (
@@ -313,6 +328,26 @@ export default function Configuracion() {
             })}
           </div>
         )}
+
+        {/* Drop zone para importar */}
+        <div
+          onDragOver={e => { e.preventDefault(); setArrastrando(true) }}
+          onDragEnter={e => { e.preventDefault(); setArrastrando(true) }}
+          onDragLeave={() => setArrastrando(false)}
+          onDrop={handleDrop}
+          className={`mt-5 flex flex-col items-center justify-center gap-2 py-8 px-4 rounded-lg border-2 border-dashed transition-colors ${
+            arrastrando
+              ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+          }`}
+        >
+          <svg className={`w-8 h-8 ${arrastrando ? 'text-blue-500' : 'text-gray-400 dark:text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <p className={`text-sm ${arrastrando ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+            {arrastrando ? 'Suelta el archivo aquí' : 'Arrastra un archivo .plastiflow aquí para importarlo'}
+          </p>
+        </div>
       </section>
 
       {/* Sección: Ajustes de producción */}

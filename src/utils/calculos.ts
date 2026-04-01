@@ -15,7 +15,9 @@ import type { Molde, Maquina, Material, OrdenProduccion, CalculosOrden, Calculos
  */
 export function calcularPiezasPorHora(molde: Molde): number {
   if (!molde.tiempoCiclo || molde.tiempoCiclo <= 0) return 0
-  return Math.floor(3600 / molde.tiempoCiclo) * molde.numeroCavidades
+  const base = Math.floor(3600 / molde.tiempoCiclo) * molde.numeroCavidades
+  const eficiencia = molde.eficiencia > 0 ? molde.eficiencia : 100
+  return Math.floor(base * (eficiencia / 100))
 }
 
 /**
@@ -24,7 +26,9 @@ export function calcularPiezasPorHora(molde: Molde): number {
  */
 export function calcularMaterialPorHoraKg(molde: Molde): number {
   if (!molde.tiempoCiclo || molde.tiempoCiclo <= 0) return 0
-  return (3600 / molde.tiempoCiclo) * (molde.pesoPorDisparo / 1000)
+  const base = (3600 / molde.tiempoCiclo) * (molde.pesoPorDisparo / 1000)
+  const eficiencia = molde.eficiencia > 0 ? molde.eficiencia : 100
+  return base * (eficiencia / 100)
 }
 
 /**
@@ -164,9 +168,13 @@ export function calcularProyeccionEstado(margenDias: number): ProyeccionEstado {
 export function calcularDatosOrden(
   orden: Pick<OrdenProduccion, 'cantidadRequerida' | 'fechaInicio' | 'fechaEntrega'>,
   molde: Molde,
-  material: Material
+  material: Material,
+  maquina?: Pick<Maquina, 'eficiencia'> | null
 ): CalculosOrden {
-  const piezasPorHora = calcularPiezasPorHora(molde)
+  let piezasPorHora = calcularPiezasPorHora(molde) // ya incluye eficiencia del molde
+  if (maquina && maquina.eficiencia > 0 && maquina.eficiencia < 100) {
+    piezasPorHora = Math.floor(piezasPorHora * (maquina.eficiencia / 100))
+  }
   const tiempoEstimadoHoras = calcularTiempoEstimadoHoras(orden.cantidadRequerida, piezasPorHora)
   const materialNetoKg = calcularMaterialNetoKg(orden.cantidadRequerida, molde)
   const materialConMermaKg = calcularMaterialConMermaKg(materialNetoKg, material.mermaEstandar)

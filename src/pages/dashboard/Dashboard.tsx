@@ -24,44 +24,6 @@ import type {
 } from '../../types'
 
 // ─────────────────────────────────────────────
-// Sub-componente: KPI Card
-// ─────────────────────────────────────────────
-
-interface KpiCardProps {
-  icono: string
-  titulo: string
-  valor: string | number
-  subtexto: string
-  colorIcono: string
-  colorBorde: string
-  onClick?: () => void
-}
-
-function KpiCard({ icono, titulo, valor, subtexto, colorIcono, colorBorde, onClick }: KpiCardProps) {
-  return (
-    <div
-      className={`${cls.card} p-5 border-l-4 ${colorBorde} ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
-      onClick={onClick}
-    >
-      <div className="flex items-center gap-4">
-        <div className={`text-4xl ${colorIcono} shrink-0`}>{icono}</div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            {titulo}
-          </p>
-          <p className="text-3xl font-bold text-gray-900 dark:text-white mt-0.5">
-            {valor}
-          </p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
-            {subtexto}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────
 // Sub-componente: Módulo Card
 // ─────────────────────────────────────────────
 
@@ -114,27 +76,6 @@ export default function Dashboard() {
   const clientes   = useLiveQuery<Cliente[]>(() => db.clientes.where('perfilId').equals(perfilActivoId).toArray(), [perfilActivoId]) ?? []
   const alertas    = useLiveQuery<Alerta[]>(() => db.alertas.where('perfilId').equals(perfilActivoId).toArray(), [perfilActivoId]) ?? []
 
-  // ── KPIs ──────────────────────────────────
-  const stats = useMemo(() => {
-    const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0)
-    const en7dias = new Date(hoy)
-    en7dias.setDate(en7dias.getDate() + 7)
-
-    return {
-      ordenesActivas:   ordenes.filter(o => ['pendiente', 'en_produccion', 'con_riesgo'].includes(o.estado)).length,
-      entregasProximas: ordenes.filter(o => {
-        if (o.estado === 'entregado') return false
-        const fecha = new Date(o.fechaEntrega)
-        return fecha >= hoy && fecha <= en7dias
-      }).length,
-      maquinasActivas:  maquinas.filter(m => m.estado === 'activa').length,
-      maquinasTotal:    maquinas.length,
-      alertasCriticas:  alertas.filter(a => a.prioridad === 'alta' && !a.vista).length,
-      alertasNoLeidas:  alertas.filter(a => !a.vista).length,
-    }
-  }, [ordenes, maquinas, alertas])
-
   // ── Alertas recientes ─────────────────────
   const alertasRecientes = useMemo(() =>
     [...alertas]
@@ -154,52 +95,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* ── Sección 1: KPI Cards ── */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-          Métricas clave
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard
-            icono="📋"
-            titulo="Órdenes activas"
-            valor={stats.ordenesActivas}
-            subtexto="pendientes + en producción + con riesgo"
-            colorIcono="text-blue-500"
-            colorBorde="border-blue-500"
-            onClick={() => navigate('/ordenes')}
-          />
-          <KpiCard
-            icono="📅"
-            titulo="Entregas próximas"
-            valor={stats.entregasProximas}
-            subtexto="vencen en los próximos 7 días"
-            colorIcono="text-orange-500"
-            colorBorde="border-orange-500"
-            onClick={() => navigate('/ordenes')}
-          />
-          <KpiCard
-            icono="⚙️"
-            titulo="Máquinas activas"
-            valor={stats.maquinasTotal > 0 ? `${stats.maquinasActivas}/${stats.maquinasTotal}` : '—'}
-            subtexto="de las máquinas registradas"
-            colorIcono="text-green-500"
-            colorBorde="border-green-500"
-            onClick={() => navigate('/maquinas')}
-          />
-          <KpiCard
-            icono="🔔"
-            titulo="Alertas críticas"
-            valor={stats.alertasCriticas}
-            subtexto={`${stats.alertasNoLeidas} alerta${stats.alertasNoLeidas !== 1 ? 's' : ''} sin leer en total`}
-            colorIcono="text-red-500"
-            colorBorde="border-red-500"
-            onClick={() => navigate('/alertas')}
-          />
-        </div>
-      </section>
-
-      {/* ── Sección 2: Módulos ── */}
+      {/* ── Sección 1: Módulos ── */}
       <section>
         <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
           Módulos

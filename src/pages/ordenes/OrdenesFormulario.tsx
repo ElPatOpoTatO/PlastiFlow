@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useOrden, crearOrden, actualizarOrden } from '../../hooks/useOrdenes'
+import { useOrden, useOrdenes, crearOrden, actualizarOrden } from '../../hooks/useOrdenes'
 import { useMateriales } from '../../hooks/useMateriales'
 import { useMaquinas } from '../../hooks/useMaquinas'
 import { useMoldes } from '../../hooks/useMoldes'
@@ -10,6 +10,10 @@ import { calcularDatosOrden, formatearFecha, formatearNumero, formatearHoras } f
 import { colorProyeccion, cls } from '../../utils/ui'
 import type { EstadoOrden, PrioridadOrden, TipoOrden, FrecuenciaOrden } from '../../types'
 
+const HSL_PALETTE = Array.from({ length: 16 }, (_, i) =>
+  `hsl(${Math.floor(i * 360 / 16)}, 77%, 61%)`
+)
+
 interface Props { id?: string; onGuardado?: () => void; onCancelado?: () => void }
 
 type Form = {
@@ -17,7 +21,7 @@ type Form = {
   moldeId: string; maquinaId: string; materialId: string
   fechaInicio: string; fechaEntrega: string
   prioridad: PrioridadOrden; tipoOrden: TipoOrden
-  frecuencia: FrecuenciaOrden | ''; estado: EstadoOrden; notasInternas: string
+  frecuencia: FrecuenciaOrden | ''; color: string; estado: EstadoOrden; notasInternas: string
 }
 
 type Errores = Partial<Record<keyof Form, string>>
@@ -27,12 +31,11 @@ const FORM_VACIO: Form = {
   moldeId: '', maquinaId: '', materialId: '',
   fechaInicio: '', fechaEntrega: '',
   prioridad: 'media', tipoOrden: 'unico',
-  frecuencia: '', estado: 'pendiente', notasInternas: '',
+  frecuencia: '', color: 'hsl(202, 77%, 61%)', estado: 'pendiente', notasInternas: '',
 }
 
 function validar(f: Form): Errores {
   const e: Errores = {}
-  if (!f.clienteId) e.clienteId = 'Selecciona un cliente'
   if (!f.producto.trim()) e.producto = 'El producto es requerido'
   const cant = parseInt(f.cantidadRequerida)
   if (!f.cantidadRequerida || isNaN(cant) || cant < 1) e.cantidadRequerida = 'Debe ser al menos 1 pieza'
@@ -54,6 +57,7 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
   const maquinas = useMaquinas(perfilActivoId)
   const moldes = useMoldes(perfilActivoId)
   const clientes = useClientes(perfilActivoId)
+  const todasOrdenes = useOrdenes(perfilActivoId)
 
   const [form, setForm] = useState<Form>(FORM_VACIO)
   const [errores, setErrores] = useState<Errores>({})
@@ -70,6 +74,7 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
         materialId: ordenExistente.materialId, fechaInicio: ordenExistente.fechaInicio,
         fechaEntrega: ordenExistente.fechaEntrega, prioridad: ordenExistente.prioridad,
         tipoOrden: ordenExistente.tipoOrden, frecuencia: ordenExistente.frecuencia ?? '',
+        color: ordenExistente.color ?? '#3B82F6',
         estado: ordenExistente.estado, notasInternas: ordenExistente.notasInternas,
       })
     }
@@ -85,6 +90,7 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
   // Entidades seleccionadas
   const moldeSeleccionado = useMemo(() => moldes.find(m => m.id === form.moldeId), [moldes, form.moldeId])
   const materialSeleccionado = useMemo(() => materiales.find(m => m.id === form.materialId), [materiales, form.materialId])
+  const maquinaSeleccionada = useMemo(() => maquinas.find(m => m.id === form.maquinaId), [maquinas, form.maquinaId])
 
   // Cálculos en tiempo real (sección 9.3)
   const calculos = useMemo(() => {
@@ -93,9 +99,27 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
     return calcularDatosOrden(
       { cantidadRequerida: cant, fechaInicio: form.fechaInicio, fechaEntrega: form.fechaEntrega },
       moldeSeleccionado,
-      materialSeleccionado
+      materialSeleccionado,
+      maquinaSeleccionada
     )
-  }, [moldeSeleccionado, materialSeleccionado, form.cantidadRequerida, form.fechaInicio, form.fechaEntrega])
+  }, [moldeSeleccionado, materialSeleccionado, maquinaSeleccionada, form.cantidadRequerida, form.fechaInicio, form.fechaEntrega])
+
+  // ── Detección de conflictos de máquina ──
+  const conflictos = useMemo(() => {
+    if (!form.maquinaId || !form.fechaInicio || !form.fechaEntrega) return []
+    return todasOrdenes
+      .filter(o => o.maquinaId === form.maquinaId && o.id !== id && o.estado !== 'entregado')
+      .map(o => {
+        // Solapamiento: A empieza antes de que B termine Y B empieza antes de que A termine
+        const seEnciman = form.fechaInicio < o.fechaEntrega && o.fechaInicio < form.fechaEntrega
+        // Adyacente: una empieza exactamente cuando la otra termina
+        const esAdyacente = form.fechaInicio === o.fechaEntrega || form.fechaEntrega === o.fechaInicio
+        if (seEnciman) return { orden: o, tipo: 'error' as const }
+        if (esAdyacente) return { orden: o, tipo: 'advertencia' as const }
+        return null
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null)
+  }, [form.maquinaId, form.fechaInicio, form.fechaEntrega, todasOrdenes, id])
 
   const handleGuardar = async () => {
     const todosErrores = validar(form)
@@ -111,6 +135,7 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
         fechaInicio: form.fechaInicio, fechaEntrega: form.fechaEntrega,
         prioridad: form.prioridad, tipoOrden: form.tipoOrden,
         frecuencia: form.tipoOrden === 'recurrente' ? (form.frecuencia as FrecuenciaOrden) : undefined,
+        color: form.color,
         estado: form.estado, notasInternas: form.notasInternas.trim(),
         perfilId: perfilActivoId!,
       }
@@ -159,7 +184,7 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={cls.label}>Cliente <span className="text-red-500">*</span></label>
+              <label className={cls.label}>Cliente</label>
               <select {...sel('clienteId')}>
                 <option value="">— Selecciona un cliente —</option>
                 {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -217,6 +242,8 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
                   <option value="semanal">Semanal</option>
                   <option value="quincenal">Quincenal</option>
                   <option value="mensual">Mensual</option>
+                  <option value="bimestral">Bimestral</option>
+                  <option value="trimestral">Trimestral</option>
                   <option value="personalizado">Personalizado</option>
                 </select>
                 {err('frecuencia')}
@@ -268,6 +295,30 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
               ))}
             </select>
           </div>
+
+          {/* Conflictos de máquina */}
+          {conflictos.length > 0 && (
+            <div className="space-y-2">
+              {conflictos.map(c => (
+                <div
+                  key={c.orden.id}
+                  className={`flex items-start gap-2 px-3 py-2 rounded-lg text-xs ${
+                    c.tipo === 'error'
+                      ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                      : 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-300'
+                  }`}
+                >
+                  <span className="shrink-0 mt-0.5">{c.tipo === 'error' ? '⛔' : '⚠️'}</span>
+                  <span>
+                    {c.tipo === 'error'
+                      ? `Conflicto: la orden ${c.orden.folio} (${c.orden.producto}) usa la misma máquina del ${c.orden.fechaInicio} al ${c.orden.fechaEntrega} y las fechas se solapan.`
+                      : `Advertencia: la orden ${c.orden.folio} (${c.orden.producto}) en la misma máquina es adyacente (termina/empieza el mismo día).`
+                    }
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Sección: Fechas */}
@@ -330,6 +381,26 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
             </div>
           </div>
         )}
+
+        {/* Color en calendario */}
+        <div className={`${cls.card} p-5 space-y-3`}>
+          <label className={cls.label}>Color en calendario</label>
+          <div className="flex flex-wrap gap-2">
+            {HSL_PALETTE.map(color => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => handleChange('color', color)}
+                className={`w-8 h-8 rounded-full border-2 transition-transform ${
+                  form.color === color
+                    ? 'border-gray-900 dark:border-white scale-110 shadow-lg'
+                    : 'border-transparent hover:scale-105'
+                }`}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+        </div>
 
         {/* Notas */}
         <div className={`${cls.card} p-5`}>

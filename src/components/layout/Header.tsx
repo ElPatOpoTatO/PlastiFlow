@@ -2,7 +2,8 @@
 // PlastiFlow — Header principal con selector de perfil activo
 // ============================================================
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { useListaPerfiles } from '../../hooks/usePerfiles'
@@ -24,19 +25,32 @@ export default function Header({
   const navigate = useNavigate()
 
   const [dropdownAbierto, setDropdownAbierto] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+
+  const actualizarPosicion = useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left })
+    }
+  }, [])
 
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     if (!dropdownAbierto) return
+    actualizarPosicion()
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+      ) {
         setDropdownAbierto(false)
       }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [dropdownAbierto])
+  }, [dropdownAbierto, actualizarPosicion])
 
   const handleSeleccionarPerfil = (id: string) => {
     setPerfilActivoId(id)
@@ -62,8 +76,9 @@ export default function Header({
       </button>
 
       {/* Selector de perfil activo */}
-      <div className="relative flex-1 min-w-0" ref={dropdownRef}>
+      <div className="relative flex-1 min-w-0">
         <button
+          ref={triggerRef}
           onClick={() => setDropdownAbierto(prev => !prev)}
           className="flex items-center gap-2 max-w-xs px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
         >
@@ -81,9 +96,13 @@ export default function Header({
           </svg>
         </button>
 
-        {/* Dropdown */}
-        {dropdownAbierto && (
-          <div className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden">
+        {/* Dropdown (portal) */}
+        {dropdownAbierto && createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-[9999] overflow-hidden"
+            style={{ top: dropdownPos.top, left: dropdownPos.left }}
+          >
             {/* Lista de perfiles */}
             <div className="py-1 max-h-64 overflow-y-auto">
               {perfiles.length === 0 ? (
@@ -136,7 +155,8 @@ export default function Header({
                 Administrar perfiles
               </button>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
 

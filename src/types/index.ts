@@ -19,7 +19,7 @@ export type PrioridadOrden = 'alta' | 'media' | 'baja'
 
 export type TipoOrden = 'recurrente' | 'unico'
 
-export type FrecuenciaOrden = 'semanal' | 'quincenal' | 'mensual' | 'personalizado'
+export type FrecuenciaOrden = 'semanal' | 'quincenal' | 'mensual' | 'bimestral' | 'trimestral' | 'personalizado'
 
 export type ProyeccionEstado = 'verde' | 'amarillo' | 'rojo'
 
@@ -109,6 +109,7 @@ export interface OrdenProduccion {
   prioridad: PrioridadOrden
   tipoOrden: TipoOrden
   frecuencia?: FrecuenciaOrden
+  color?: string                // hex color para el calendario
   estado: EstadoOrden
   notasInternas: string
   perfilId: string

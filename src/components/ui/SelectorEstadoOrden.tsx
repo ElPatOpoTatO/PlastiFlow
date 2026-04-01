@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { cambiarEstadoOrden } from '../../hooks/useOrdenes'
 import { chipEstadoOrden, labelEstadoOrden } from '../../utils/ui'
 import type { EstadoOrden } from '../../types'
@@ -13,16 +14,31 @@ interface Props {
 export default function SelectorEstadoOrden({ ordenId, estado }: Props) {
   const [abierto, setAbierto] = useState(false)
   const [cambiando, setCambiando] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ bottom: 0, left: 0 })
+
+  const actualizarPosicion = useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left })
+    }
+  }, [])
 
   useEffect(() => {
     if (!abierto) return
+    actualizarPosicion()
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false)
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        triggerRef.current && !triggerRef.current.contains(e.target as Node)
+      ) {
+        setAbierto(false)
+      }
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [abierto])
+  }, [abierto, actualizarPosicion])
 
   const handleCambiar = async (nuevoEstado: EstadoOrden) => {
     if (nuevoEstado === estado) { setAbierto(false); return }
@@ -33,8 +49,9 @@ export default function SelectorEstadoOrden({ ordenId, estado }: Props) {
   }
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <div className="relative inline-block">
       <button
+        ref={triggerRef}
         onClick={() => setAbierto(v => !v)}
         disabled={cambiando}
         className={`${chipEstadoOrden(estado)} cursor-pointer gap-1 pr-1.5`}
@@ -45,8 +62,12 @@ export default function SelectorEstadoOrden({ ordenId, estado }: Props) {
         </svg>
       </button>
 
-      {abierto && (
-        <div className="absolute z-20 top-full left-0 mt-1 w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
+      {abierto && createPortal(
+        <div
+          ref={dropdownRef}
+          className="fixed z-[9999] w-44 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden"
+          style={{ bottom: pos.bottom, left: pos.left }}
+        >
           {ESTADOS.map(e => (
             <button
               key={e}
@@ -65,7 +86,8 @@ export default function SelectorEstadoOrden({ ordenId, estado }: Props) {
               )}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
