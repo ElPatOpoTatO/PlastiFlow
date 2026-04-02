@@ -2,7 +2,7 @@
 // PlastiFlow — Página: Calendario de Producción (Gantt)
 // ============================================================
 
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { v4 as uuidv4 } from 'uuid'
 import { useApp } from '../../context/AppContext'
@@ -13,19 +13,20 @@ import type { OrdenProduccion, Maquina, RegistroDiario, Molde, Material } from '
 
 type Vista = 'diaria' | 'semanal' | 'mensual'
 
-const COL_W_DIA = 44    // px por día
-const COL_W_SEM = 120   // px por semana
-const COL_W_MES = 100   // px por mes
+const COL_W_DIA = 44    // px base por día
+const COL_W_SEM = 120   // px base por semana
+const COL_W_MES = 100   // px base por mes
 const ROW_H     = 52    // px por fila de máquina
 const HEADER_H  = 48    // px cabecera de fechas
 const COL_LABEL = 180   // px columna etiqueta
 
+const ZOOM_LEVELS = [0.5, 0.75, 1, 1.5, 2] as const
+
 // ── Color del punto indicador de estado ─────────────────────
 function dotColor(estado: string, proyeccion: string): string {
-  if (estado === 'en_produccion') return '#3b82f6'          // azul
-  if (estado === 'listo' || estado === 'entregado') return '#22c55e' // verde
-  if (estado === 'con_riesgo') return '#ef4444'             // rojo
-  // pendiente → usar proyección
+  if (estado === 'en_produccion') return '#3b82f6'
+  if (estado === 'listo' || estado === 'entregado') return '#22c55e'
+  if (estado === 'con_riesgo') return '#ef4444'
   if (proyeccion === 'verde')    return '#22c55e'
   if (proyeccion === 'amarillo') return '#eab308'
   return '#ef4444'
@@ -74,6 +75,12 @@ function siguienteMes(iso: string): string {
   d.setMonth(d.getMonth() + 1)
   d.setDate(1)
   return d.toISOString().split('T')[0]
+}
+
+function initVentanaStart(v: Vista, hoy: string): string {
+  if (v === 'diaria')  return addDias(hoy, -3)
+  if (v === 'semanal') return lunesDe(hoy)
+  return primerDiaMes(hoy)
 }
 
 // ── Sin perfil ───────────────────────────────────────────────
@@ -219,6 +226,33 @@ export default function Calendario() {
   const [vista, setVista] = useState<Vista>('diaria')
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<OrdenProduccion | null>(null)
 
+  // ── Fecha de hoy ──
+  const hoy = useMemo(() => new Date().toISOString().split('T')[0], [])
+
+  // ── Navegación y zoom ──
+  const [ventanaStart, setVentanaStart] = useState<string>(() => addDias(new Date().toISOString().split('T')[0], -3))
+  const [zoomIdx, setZoomIdx] = useState(2)
+  const [containerWidth, setContainerWidth] = useState(900)
+  const ganttRef = useRef<HTMLDivElement>(null)
+
+  // Medir el contenedor con ResizeObserver
+  useEffect(() => {
+    const el = ganttRef.current
+    if (!el) return
+    const ro = new ResizeObserver(entries => {
+      setContainerWidth(entries[0].contentRect.width)
+    })
+    ro.observe(el)
+    setContainerWidth(el.getBoundingClientRect().width)
+    return () => ro.disconnect()
+  }, [])
+
+  // Reset al cambiar de vista
+  useEffect(() => {
+    setVentanaStart(initVentanaStart(vista, hoy))
+    setZoomIdx(2)
+  }, [vista, hoy])
+
   // ── Datos reactivos ──
   const maquinas = useLiveQuery<Maquina[]>(
     () => perfilActivoId ? db.maquinas.where('perfilId').equals(perfilActivoId).toArray() : [],
@@ -244,76 +278,95 @@ export default function Calendario() {
   const matMap   = useMemo(() => Object.fromEntries(materiales.map((m: Material) => [m.id, m])), [materiales])
   const maqMap   = useMemo(() => Object.fromEntries(maquinas.map((m: Maquina)  => [m.id, m])), [maquinas])
 
-  // ── Fecha de hoy ──
-  const hoy = useMemo(() => new Date().toISOString().split('T')[0], [])
+  // ── Zoom y ancho efectivo de columna ──
+  const colW    = vista === 'diaria' ? COL_W_DIA : vista === 'semanal' ? COL_W_SEM : COL_W_MES
+  const colWEff = useMemo(() => colW * ZOOM_LEVELS[zoomIdx], [colW, zoomIdx])
+  const numCols = useMemo(
+    () => Math.max(3, Math.floor((containerWidth - COL_LABEL) / colWEff)),
+    [containerWidth, colWEff]
+  )
 
-  // ── Ventana de tiempo ──
-  const ventanaInicio = useMemo(() => {
-    if (vista === 'diaria')  return addDias(hoy, -7)
-    if (vista === 'semanal') return lunesDe(addDias(hoy, -14))
-    // mensual: 3 meses atrás, primer día del mes
-    const d = new Date(hoy + 'T00:00:00')
-    d.setMonth(d.getMonth() - 3, 1)
-    return d.toISOString().split('T')[0]
-  }, [hoy, vista])
-
+  // ── Ventana de tiempo (derivada de ventanaStart + numCols) ──
   const ventanaFin = useMemo(() => {
-    if (vista === 'diaria')  return addDias(hoy, 60)
-    if (vista === 'semanal') return addDias(lunesDe(addDias(hoy, 84)), 6)
-    // mensual: 9 meses adelante, último día del mes
-    const d = new Date(hoy + 'T00:00:00')
-    d.setMonth(d.getMonth() + 10, 0)
-    return d.toISOString().split('T')[0]
-  }, [hoy, vista])
+    if (vista === 'diaria')  return addDias(ventanaStart, numCols)
+    if (vista === 'semanal') return addDias(ventanaStart, numCols * 7)
+    // mensual: numCols meses hacia adelante
+    let cur = ventanaStart
+    for (let i = 0; i < numCols; i++) cur = siguienteMes(cur)
+    return addDias(cur, -1)
+  }, [vista, ventanaStart, numCols])
 
   // ── Columnas ──
   const columnas = useMemo(() => {
     const cols: string[] = []
     if (vista === 'diaria') {
-      let cur = ventanaInicio
+      let cur = ventanaStart
       while (cur <= ventanaFin) { cols.push(cur); cur = addDias(cur, 1) }
     } else if (vista === 'semanal') {
-      let cur = lunesDe(ventanaInicio)
+      let cur = lunesDe(ventanaStart)
       while (cur <= ventanaFin) { cols.push(cur); cur = addDias(cur, 7) }
     } else {
-      let cur = primerDiaMes(ventanaInicio)
+      let cur = primerDiaMes(ventanaStart)
       while (cur <= ventanaFin) { cols.push(cur); cur = siguienteMes(cur) }
     }
     return cols
-  }, [vista, ventanaInicio, ventanaFin])
-
-  const colW = vista === 'diaria' ? COL_W_DIA : vista === 'semanal' ? COL_W_SEM : COL_W_MES
+  }, [vista, ventanaStart, ventanaFin])
 
   // ── Conversión fecha ↔ píxeles (posicionamiento exacto) ──
   const dateToPixel = useCallback((iso: string): number => {
     if (vista !== 'mensual') {
-      const ppd = vista === 'diaria' ? COL_W_DIA : COL_W_SEM / 7
-      return diffDias(ventanaInicio, iso) * ppd
+      const ppd = vista === 'diaria' ? colWEff : colWEff / 7
+      return diffDias(ventanaStart, iso) * ppd
     }
-    // Mensual: interpolar dentro del mes para alineación exacta
     for (let i = 0; i < columnas.length; i++) {
       const ms = columnas[i]
-      const me = i + 1 < columnas.length ? columnas[i + 1] : addDias(ventanaFin, 1)
+      const me = i + 1 < columnas.length ? columnas[i + 1] : siguienteMes(columnas[i])
       if (iso >= ms && iso < me) {
         const dim = diffDias(ms, me)
-        return i * COL_W_MES + (diffDias(ms, iso) / dim) * COL_W_MES
+        return i * colWEff + (diffDias(ms, iso) / dim) * colWEff
       }
     }
-    return columnas.length * COL_W_MES
-  }, [vista, ventanaInicio, ventanaFin, columnas])
+    return columnas.length * colWEff
+  }, [vista, ventanaStart, columnas, colWEff])
 
   const pixelToDate = useCallback((px: number): string => {
     if (vista !== 'mensual') {
-      const ppd = vista === 'diaria' ? COL_W_DIA : COL_W_SEM / 7
-      return addDias(ventanaInicio, Math.round(px / ppd))
+      const ppd = vista === 'diaria' ? colWEff : colWEff / 7
+      return addDias(ventanaStart, Math.round(px / ppd))
     }
-    const colIdx = Math.min(Math.max(Math.floor(px / COL_W_MES), 0), columnas.length - 1)
-    const colFrac = Math.max(0, px - colIdx * COL_W_MES) / COL_W_MES
+    const colIdx = Math.min(Math.max(Math.floor(px / colWEff), 0), columnas.length - 1)
+    const colFrac = Math.max(0, px - colIdx * colWEff) / colWEff
     const ms  = columnas[colIdx]
-    const me  = colIdx + 1 < columnas.length ? columnas[colIdx + 1] : addDias(ventanaFin, 1)
+    const me  = colIdx + 1 < columnas.length ? columnas[colIdx + 1] : siguienteMes(columnas[colIdx])
     const dim = diffDias(ms, me)
     return addDias(ms, Math.round(colFrac * dim))
-  }, [vista, ventanaInicio, ventanaFin, columnas])
+  }, [vista, ventanaStart, columnas, colWEff])
+
+  // ── Acciones de navegación ──
+  const navAnterior = useCallback(() => {
+    setVentanaStart(prev => {
+      if (vista === 'diaria')  return addDias(prev, -1)
+      if (vista === 'semanal') return addDias(prev, -7)
+      const d = new Date(prev + 'T00:00:00')
+      d.setMonth(d.getMonth() - 1, 1)
+      return d.toISOString().split('T')[0]
+    })
+  }, [vista])
+
+  const navSiguiente = useCallback(() => {
+    setVentanaStart(prev => {
+      if (vista === 'diaria')  return addDias(prev, 1)
+      if (vista === 'semanal') return addDias(prev, 7)
+      return siguienteMes(prev)
+    })
+  }, [vista])
+
+  const navHoy = useCallback(() => {
+    setVentanaStart(initVentanaStart(vista, hoy))
+  }, [vista, hoy])
+
+  const zoomIn  = () => setZoomIdx(i => Math.min(i + 1, ZOOM_LEVELS.length - 1))
+  const zoomOut = () => setZoomIdx(i => Math.max(i - 1, 0))
 
   // ── Cálculos de órdenes para posicionamiento ──
   const ordenesConCalc = useMemo(() => {
@@ -323,7 +376,6 @@ export default function Calendario() {
         const molde = moldeMap[o.moldeId]
         const mat   = matMap[o.materialId]
         const calc  = molde && mat ? calcularDatosOrden(o, molde, mat, maqMap[o.maquinaId]) : null
-        // El bloque cubre hasta la fecha de entrega (mínimo) o la fecha estimada si es mayor
         const fechaFinCalc = calc?.fechaEstimadaFin ?? o.fechaEntrega
         const fechaFin     = fechaFinCalc > o.fechaEntrega ? fechaFinCalc : o.fechaEntrega
         const proyeccion   = calc?.proyeccionEstado ?? 'amarillo'
@@ -333,7 +385,7 @@ export default function Calendario() {
 
   // ── Filas: máquinas + "Sin máquina" si aplica ──
   const filas = useMemo(() => {
-    const rows: { id: string; nombre: string }[] = maquinas.map(m => ({ id: m.id, nombre: m.nombre }))
+    const rows: { id: string; nombre: string; color?: string }[] = maquinas.map(m => ({ id: m.id, nombre: m.nombre, color: m.color }))
     const haySinMaquina = ordenesConCalc.some(o => !o.orden.maquinaId)
     if (haySinMaquina) rows.push({ id: '', nombre: 'Sin máquina' })
     return rows
@@ -342,7 +394,6 @@ export default function Calendario() {
   // ── Drag & Drop ──
   const dragOrdenId  = useRef<string | null>(null)
   const dragOffsetX  = useRef<number>(0)
-  const ganttRef     = useRef<HTMLDivElement>(null)
 
   const handleDragStart = useCallback((e: React.DragEvent, ordenId: string) => {
     dragOrdenId.current = ordenId
@@ -360,16 +411,15 @@ export default function Calendario() {
     if (!orden || !ganttRef.current) return
 
     const ganttRect  = ganttRef.current.getBoundingClientRect()
-    const scrollLeft = ganttRef.current.scrollLeft
     const scrollTop  = ganttRef.current.scrollTop
 
-    // Nueva fecha de inicio desde posición X
-    const xInGantt   = e.clientX - ganttRect.left + scrollLeft - COL_LABEL - dragOffsetX.current
+    // Nueva fecha desde posición X (sin scrollLeft porque no hay scroll horizontal)
+    const xInGantt   = e.clientX - ganttRect.left - COL_LABEL - dragOffsetX.current
     const nuevaInicio = pixelToDate(xInGantt)
     const duracion    = diffDias(orden.fechaInicio, orden.fechaEntrega)
     const nuevaFin    = addDias(nuevaInicio, duracion)
 
-    // Máquina destino desde posición Y (mover entre máquinas)
+    // Máquina destino desde posición Y
     const yInContent  = e.clientY - ganttRect.top + scrollTop - HEADER_H
     const rowIdx      = Math.max(0, Math.min(filas.length - 1, Math.floor(yInContent / ROW_H)))
     const targetMaqId = filas[rowIdx]?.id ?? ''
@@ -397,14 +447,66 @@ export default function Calendario() {
 
   if (!perfilActivoId) return <SinPerfilActivo />
 
-  const totalW = COL_LABEL + columnas.length * colW
+  const totalW = COL_LABEL + columnas.length * colWEff
+
+  // Etiqueta de la unidad de navegación según vista
+  const unidadNav = vista === 'diaria' ? 'día' : vista === 'semanal' ? 'semana' : 'mes'
 
   return (
-    <div className="p-4 space-y-4 h-full flex flex-col">
+    <div className="p-4 space-y-3 h-full flex flex-col">
 
-      {/* Cabecera */}
-      <div className="flex items-center justify-between shrink-0">
+      {/* ── Cabecera con controles ── */}
+      <div className="flex items-center gap-2 shrink-0 flex-wrap">
         <h1 className={cls.pageTitle}>Calendario de Producción</h1>
+
+        {/* Zoom */}
+        <div className="flex items-center gap-1 ml-auto">
+          <button
+            onClick={zoomOut}
+            disabled={zoomIdx === 0}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Alejar (ver más)"
+          >−</button>
+          <span className="text-xs text-gray-400 dark:text-gray-500 w-10 text-center select-none">
+            {Math.round(ZOOM_LEVELS[zoomIdx] * 100)}%
+          </span>
+          <button
+            onClick={zoomIn}
+            disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            title="Acercar (ver menos)"
+          >+</button>
+        </div>
+
+        {/* Navegación prev / hoy / next */}
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+          <button
+            onClick={navAnterior}
+            className="px-2.5 py-1.5 rounded-md text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm transition-all"
+            title={`Retroceder un ${unidadNav}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            onClick={navHoy}
+            className="px-3 py-1.5 rounded-md text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm transition-all"
+          >
+            Hoy
+          </button>
+          <button
+            onClick={navSiguiente}
+            className="px-2.5 py-1.5 rounded-md text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm transition-all"
+            title={`Avanzar un ${unidadNav}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Selector de vista */}
         <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
           {(['diaria', 'semanal', 'mensual'] as Vista[]).map(v => (
             <button
@@ -441,12 +543,12 @@ export default function Calendario() {
         </span>
       </div>
 
-      {/* Gantt */}
+      {/* ── Gantt (sin scroll horizontal) ── */}
       <div
         ref={ganttRef}
-        className="flex-1 overflow-auto border border-gray-200 dark:border-gray-700 rounded-xl"
+        className="flex-1 overflow-y-auto overflow-x-hidden border border-gray-200 dark:border-gray-700 rounded-xl"
       >
-        <div style={{ width: totalW, minWidth: '100%' }}>
+        <div style={{ width: totalW }}>
 
           {/* Cabecera de fechas */}
           <div
@@ -463,11 +565,11 @@ export default function Calendario() {
                   ? col === hoy
                   : vista === 'semanal'
                   ? col <= hoy && addDias(col, 6) >= hoy
-                  : col <= hoy && (idx + 1 < columnas.length ? columnas[idx + 1] : addDias(ventanaFin, 1)) > hoy
+                  : col <= hoy && (idx + 1 < columnas.length ? columnas[idx + 1] : siguienteMes(columnas[idx])) > hoy
               return (
                 <div
                   key={col}
-                  style={{ width: colW, minWidth: colW }}
+                  style={{ width: colWEff, minWidth: colWEff }}
                   className={`shrink-0 flex items-center justify-center border-r border-gray-100 dark:border-gray-800 text-xs font-medium
                     ${esHoy ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}
                   `}
@@ -487,7 +589,7 @@ export default function Calendario() {
             filas.map((fila, filaIdx) => {
               const ordensDeFila = ordenesConCalc.filter(o =>
                 (fila.id === '' ? !o.orden.maquinaId : o.orden.maquinaId === fila.id) &&
-                o.orden.fechaInicio <= ventanaFin && o.fechaFin >= ventanaInicio
+                o.orden.fechaInicio <= ventanaFin && o.fechaFin >= ventanaStart
               )
               const esUltima = filaIdx === filas.length - 1
 
@@ -502,6 +604,9 @@ export default function Calendario() {
                     className="shrink-0 flex items-center px-3 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 sticky left-0 z-10"
                     style={{ width: COL_LABEL }}
                   >
+                    {fila.color && (
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0 mr-2" style={{ backgroundColor: fila.color }} />
+                    )}
                     <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{fila.nombre}</span>
                   </div>
 
@@ -513,11 +618,11 @@ export default function Calendario() {
                           ? col === hoy
                           : vista === 'semanal'
                           ? col <= hoy && addDias(col, 6) >= hoy
-                          : col <= hoy && (colIdx + 1 < columnas.length ? columnas[colIdx + 1] : addDias(ventanaFin, 1)) > hoy
+                          : col <= hoy && (colIdx + 1 < columnas.length ? columnas[colIdx + 1] : siguienteMes(columnas[colIdx])) > hoy
                       return (
                         <div
                           key={col}
-                          style={{ width: colW, minWidth: colW }}
+                          style={{ width: colWEff, minWidth: colWEff }}
                           className={`shrink-0 h-full border-r border-gray-100 dark:border-gray-800 ${!esUltima ? 'border-b' : ''} border-gray-100 dark:border-gray-800
                             ${esHoy ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}
                           `}
@@ -527,9 +632,9 @@ export default function Calendario() {
                       )
                     })}
 
-                    {/* Bloques de órdenes — cubren todo el espacio de inicio a fin */}
+                    {/* Bloques de órdenes */}
                     {ordensDeFila.map(({ orden, fechaFin, proyeccion }) => {
-                      const inicioEfectivo = orden.fechaInicio < ventanaInicio ? ventanaInicio : orden.fechaInicio
+                      const inicioEfectivo = orden.fechaInicio < ventanaStart ? ventanaStart : orden.fechaInicio
                       const finEfectivo    = fechaFin > ventanaFin ? ventanaFin : fechaFin
                       const blockLeft  = dateToPixel(inicioEfectivo)
                       const blockRight = dateToPixel(addDias(finEfectivo, 1))
@@ -560,7 +665,6 @@ export default function Calendario() {
                               </span>
                             )}
                           </div>
-                          {/* Punto indicador de estado en esquina superior derecha */}
                           <span
                             className="absolute top-1 right-1 w-3 h-3 rounded-full border-2 border-white/60 shadow-sm shrink-0"
                             style={{ backgroundColor: dotColor(orden.estado, proyeccion) }}

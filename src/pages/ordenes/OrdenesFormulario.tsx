@@ -163,6 +163,14 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
     className: `${cls.input} ${tocados.has(k) && errores[k] ? 'border-red-400 focus:ring-red-400' : ''}`,
   })
 
+  const numBlur = (k: keyof Form, min = 0) => ({
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+      if (e.target.value === '' || isNaN(Number(e.target.value))) {
+        handleChange(k, String(min))
+      }
+    },
+  })
+
   const err = (k: keyof Form) =>
     tocados.has(k) && errores[k] ? <p className={cls.errorText}>{errores[k]}</p> : null
 
@@ -202,7 +210,7 @@ export default function OrdenesFormulario({ id, onGuardado, onCancelado }: Props
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className={cls.label}>Cantidad requerida (piezas) <span className="text-red-500">*</span></label>
-              <input type="number" min="1" step="1" placeholder="Ej. 10000" {...inp('cantidadRequerida')} />
+              <input type="number" min="1" step="1" placeholder="Ej. 10000" {...inp('cantidadRequerida')} {...numBlur('cantidadRequerida', 1)} />
               {err('cantidadRequerida')}
             </div>
             <div>

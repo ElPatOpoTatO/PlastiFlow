@@ -205,6 +205,7 @@ export function esMoldeCompatibleConMaquina(molde: Molde, maquina: Maquina): boo
   if (maquina.moldeAnchoMax > 0 && molde.dimensionAncho > maquina.moldeAnchoMax) return false
   if (maquina.moldeAltoMax > 0 && molde.dimensionAlto > maquina.moldeAltoMax) return false
   if (maquina.moldeEspesorMax > 0 && molde.dimensionProfundidad > maquina.moldeEspesorMax) return false
+  if (maquina.moldeEspesorMin > 0 && molde.dimensionProfundidad < maquina.moldeEspesorMin) return false
   return true
 }
 

@@ -5,12 +5,16 @@ import { useApp } from '../../context/AppContext'
 import { cls } from '../../utils/ui'
 import type { EstadoMaquina } from '../../types'
 
+const HSL_PALETTE = Array.from({ length: 16 }, (_, i) =>
+  `hsl(${Math.floor(i * 360 / 16)}, 77%, 61%)`
+)
+
 interface Props { id?: string; onGuardado?: () => void; onCancelado?: () => void }
 
 type Form = {
   nombre: string; identificador: string; estado: EstadoMaquina
   tonelaje: string; eficiencia: string
-  moldeAnchoMax: string; moldeAltoMax: string; moldeEspesorMax: string
+  moldeAnchoMax: string; moldeAltoMax: string; moldeEspesorMax: string; moldeEspesorMin: string
   capacidadInyeccionCm3: string; pesoInyeccionMaxG: string
   distanciaEntreColumnasMm: string; aperturaMaximaMm: string
   operador: string; horasOperacion: string; notas: string
@@ -21,10 +25,10 @@ type Errores = Partial<Record<keyof Form, string>>
 const FORM_VACIO: Form = {
   nombre: '', identificador: '', estado: 'activa',
   tonelaje: '', eficiencia: '',
-  moldeAnchoMax: '', moldeAltoMax: '', moldeEspesorMax: '',
+  moldeAnchoMax: '', moldeAltoMax: '', moldeEspesorMax: '', moldeEspesorMin: '',
   capacidadInyeccionCm3: '', pesoInyeccionMaxG: '',
   distanciaEntreColumnasMm: '', aperturaMaximaMm: '',
-  operador: '', horasOperacion: '0', notas: '',
+  operador: '', horasOperacion: '', notas: '',
 }
 
 function validar(f: Form): Errores {
@@ -46,6 +50,7 @@ export default function MaquinasFormulario({ id, onGuardado, onCancelado }: Prop
   const navigate = useNavigate()
   const maquinaExistente = useMaquina(id)
   const [form, setForm] = useState<Form>(FORM_VACIO)
+  const [color, setColor] = useState<string>('hsl(202, 77%, 61%)')
   const [errores, setErrores] = useState<Errores>({})
   const [tocados, setTocados] = useState<Set<keyof Form>>(new Set())
   const [guardando, setGuardando] = useState(false)
@@ -62,14 +67,16 @@ export default function MaquinasFormulario({ id, onGuardado, onCancelado }: Prop
         moldeAnchoMax: maquinaExistente.moldeAnchoMax ? String(maquinaExistente.moldeAnchoMax) : '',
         moldeAltoMax: maquinaExistente.moldeAltoMax ? String(maquinaExistente.moldeAltoMax) : '',
         moldeEspesorMax: maquinaExistente.moldeEspesorMax ? String(maquinaExistente.moldeEspesorMax) : '',
+        moldeEspesorMin: maquinaExistente.moldeEspesorMin ? String(maquinaExistente.moldeEspesorMin) : '',
         capacidadInyeccionCm3: maquinaExistente.capacidadInyeccionCm3 ? String(maquinaExistente.capacidadInyeccionCm3) : '',
         pesoInyeccionMaxG: maquinaExistente.pesoInyeccionMaxG ? String(maquinaExistente.pesoInyeccionMaxG) : '',
         distanciaEntreColumnasMm: maquinaExistente.distanciaEntreColumnasMm ? String(maquinaExistente.distanciaEntreColumnasMm) : '',
         aperturaMaximaMm: maquinaExistente.aperturaMaximaMm ? String(maquinaExistente.aperturaMaximaMm) : '',
         operador: maquinaExistente.operador,
-        horasOperacion: String(maquinaExistente.horasOperacion),
+        horasOperacion: maquinaExistente.horasOperacion ? String(maquinaExistente.horasOperacion) : '',
         notas: maquinaExistente.notas,
       })
+      if (maquinaExistente.color) setColor(maquinaExistente.color)
     }
   }, [maquinaExistente])
 
@@ -96,12 +103,14 @@ export default function MaquinasFormulario({ id, onGuardado, onCancelado }: Prop
         moldeAnchoMax: posNum(form.moldeAnchoMax),
         moldeAltoMax: posNum(form.moldeAltoMax),
         moldeEspesorMax: posNum(form.moldeEspesorMax),
+        moldeEspesorMin: posNum(form.moldeEspesorMin),
         capacidadInyeccionCm3: posNum(form.capacidadInyeccionCm3),
         pesoInyeccionMaxG: posNum(form.pesoInyeccionMaxG),
         distanciaEntreColumnasMm: posNum(form.distanciaEntreColumnasMm),
         aperturaMaximaMm: posNum(form.aperturaMaximaMm),
         operador: form.operador.trim(),
         horasOperacion: posNum(form.horasOperacion),
+        color,
         notas: form.notas.trim(),
         perfilId: perfilActivoId!,
       }
@@ -122,6 +131,15 @@ export default function MaquinasFormulario({ id, onGuardado, onCancelado }: Prop
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       handleChange(k, e.target.value),
     className: `${cls.input} ${tocados.has(k) && errores[k] ? 'border-red-400 focus:ring-red-400' : ''}`,
+  })
+
+  // Normaliza campo numérico al perder foco: si está vacío o NaN → usa el mínimo
+  const numBlur = (k: keyof Form, min = 0) => ({
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+      if (e.target.value === '' || isNaN(Number(e.target.value))) {
+        handleChange(k, String(min))
+      }
+    },
   })
 
   const err = (k: keyof Form) =>
@@ -164,18 +182,35 @@ export default function MaquinasFormulario({ id, onGuardado, onCancelado }: Prop
           </div>
         </div>
 
+        {/* ── Color ── */}
+        <div>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Color en el calendario</p>
+          <div className="flex flex-wrap gap-2">
+            {HSL_PALETTE.map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setColor(c)}
+                className={`w-7 h-7 rounded-full transition-transform ${color === c ? 'scale-110 ring-2 ring-offset-2 ring-gray-900 dark:ring-white' : 'hover:scale-105'}`}
+                style={{ backgroundColor: c }}
+                aria-label={c}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* ── Capacidades generales ── */}
         <div>
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Capacidades generales</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={cls.label}>Tonelaje / Fuerza de cierre (ton)</label>
-              <input type="number" min="0" step="1" placeholder="Ej. 250" {...inp('tonelaje')} />
+              <input type="number" min="0" step="1" placeholder="Ej. 250" {...inp('tonelaje')} {...numBlur('tonelaje')} />
               {err('tonelaje')}
             </div>
             <div>
               <label className={cls.label}>Eficiencia (%)</label>
-              <input type="number" min="0" max="100" step="1" placeholder="Ej. 90" {...inp('eficiencia')} />
+              <input type="number" min="0" max="100" step="1" placeholder="Ej. 90" {...inp('eficiencia')} {...numBlur('eficiencia')} />
               {err('eficiencia')}
             </div>
           </div>
@@ -183,22 +218,23 @@ export default function MaquinasFormulario({ id, onGuardado, onCancelado }: Prop
 
         {/* ── Dimensiones máx. de molde ── */}
         <div>
-          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Dimensiones máximas de molde (mm)</p>
-          <div className="grid grid-cols-3 gap-3">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Dimensiones de molde (mm)</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className={cls.label}>Ancho máx.</label>
-              <input type="number" min="0" step="1" placeholder="Ej. 600" {...inp('moldeAnchoMax')} />
-              <p className="text-xs text-gray-400 mt-1 text-center">Ancho</p>
+              <input type="number" min="0" step="1" placeholder="Ej. 600" {...inp('moldeAnchoMax')} {...numBlur('moldeAnchoMax')} />
             </div>
             <div>
               <label className={cls.label}>Alto máx.</label>
-              <input type="number" min="0" step="1" placeholder="Ej. 500" {...inp('moldeAltoMax')} />
-              <p className="text-xs text-gray-400 mt-1 text-center">Alto</p>
+              <input type="number" min="0" step="1" placeholder="Ej. 500" {...inp('moldeAltoMax')} {...numBlur('moldeAltoMax')} />
             </div>
             <div>
               <label className={cls.label}>Espesor máx.</label>
-              <input type="number" min="0" step="1" placeholder="Ej. 400" {...inp('moldeEspesorMax')} />
-              <p className="text-xs text-gray-400 mt-1 text-center">Espesor</p>
+              <input type="number" min="0" step="1" placeholder="Ej. 400" {...inp('moldeEspesorMax')} {...numBlur('moldeEspesorMax')} />
+            </div>
+            <div>
+              <label className={cls.label}>Espesor mín.</label>
+              <input type="number" min="0" step="1" placeholder="Ej. 150" {...inp('moldeEspesorMin')} {...numBlur('moldeEspesorMin')} />
             </div>
           </div>
         </div>
@@ -209,19 +245,19 @@ export default function MaquinasFormulario({ id, onGuardado, onCancelado }: Prop
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={cls.label}>Cap. inyección (cm³)</label>
-              <input type="number" min="0" step="1" placeholder="Ej. 450" {...inp('capacidadInyeccionCm3')} />
+              <input type="number" min="0" step="1" placeholder="Ej. 450" {...inp('capacidadInyeccionCm3')} {...numBlur('capacidadInyeccionCm3')} />
             </div>
             <div>
               <label className={cls.label}>Peso iny. máx. (g)</label>
-              <input type="number" min="0" step="1" placeholder="Ej. 400" {...inp('pesoInyeccionMaxG')} />
+              <input type="number" min="0" step="1" placeholder="Ej. 400" {...inp('pesoInyeccionMaxG')} {...numBlur('pesoInyeccionMaxG')} />
             </div>
             <div>
               <label className={cls.label}>Dist. entre columnas (mm)</label>
-              <input type="number" min="0" step="1" placeholder="Ej. 520" {...inp('distanciaEntreColumnasMm')} />
+              <input type="number" min="0" step="1" placeholder="Ej. 520" {...inp('distanciaEntreColumnasMm')} {...numBlur('distanciaEntreColumnasMm')} />
             </div>
             <div>
               <label className={cls.label}>Apertura máxima (mm)</label>
-              <input type="number" min="0" step="1" placeholder="Ej. 800" {...inp('aperturaMaximaMm')} />
+              <input type="number" min="0" step="1" placeholder="Ej. 800" {...inp('aperturaMaximaMm')} {...numBlur('aperturaMaximaMm')} />
             </div>
           </div>
         </div>
@@ -236,7 +272,7 @@ export default function MaquinasFormulario({ id, onGuardado, onCancelado }: Prop
             </div>
             <div>
               <label className={cls.label}>Horas de operación acumuladas</label>
-              <input type="number" min="0" step="0.5" {...inp('horasOperacion')} />
+              <input type="number" min="0" step="0.5" {...inp('horasOperacion')} {...numBlur('horasOperacion')} />
               {err('horasOperacion')}
             </div>
           </div>

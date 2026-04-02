@@ -123,7 +123,7 @@ export default function MoldesDetalle({ id }: Props) {
         <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
           <div><dt className="text-gray-400 dark:text-gray-500">Nº de cavidades</dt><dd className="font-semibold text-gray-900 dark:text-white mt-0.5">{molde.numeroCavidades}</dd></div>
           <div><dt className="text-gray-400 dark:text-gray-500">Tiempo de ciclo</dt><dd className="font-semibold text-gray-900 dark:text-white mt-0.5">{molde.tiempoCiclo}s · {formatearHoras(molde.tiempoCiclo / 3600)}</dd></div>
-          <div><dt className="text-gray-400 dark:text-gray-500">Peso por disparo</dt><dd className="font-semibold text-gray-900 dark:text-white mt-0.5">{formatearNumero(molde.pesoPorDisparo)} g</dd></div>
+          <div><dt className="text-gray-400 dark:text-gray-500">Peso por pieza</dt><dd className="font-semibold text-gray-900 dark:text-white mt-0.5">{formatearNumero(molde.pesoPorDisparo)} g</dd></div>
           <div><dt className="text-gray-400 dark:text-gray-500">Dimensiones</dt>
             <dd className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">
               {molde.dimensionAncho}×{molde.dimensionAlto}×{molde.dimensionProfundidad} mm

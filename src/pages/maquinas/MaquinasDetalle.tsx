@@ -78,6 +78,9 @@ export default function MaquinasDetalle({ id }: Props) {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
+            {maquina.color && (
+              <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: maquina.color }} />
+            )}
             <h1 className={cls.pageTitle}>{maquina.nombre}</h1>
             <span className={chipEstadoMaquina(maquina.estado)}>{labelEstadoMaquina(maquina.estado)}</span>
           </div>
@@ -106,6 +109,7 @@ export default function MaquinasDetalle({ id }: Props) {
           <div><dt className="text-gray-400 dark:text-gray-500">Tonelaje</dt><dd className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{maquina.tonelaje ? `${formatearNumero(maquina.tonelaje, 0)} ton` : '—'}</dd></div>
           <div><dt className="text-gray-400 dark:text-gray-500">Eficiencia</dt><dd className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{maquina.eficiencia ? `${formatearNumero(maquina.eficiencia, 0)}%` : '—'}</dd></div>
           <div><dt className="text-gray-400 dark:text-gray-500">Dim. máx. molde (mm)</dt><dd className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{(maquina.moldeAnchoMax || maquina.moldeAltoMax || maquina.moldeEspesorMax) ? `${maquina.moldeAnchoMax || '?'}×${maquina.moldeAltoMax || '?'}×${maquina.moldeEspesorMax || '?'}` : '—'}</dd></div>
+          <div><dt className="text-gray-400 dark:text-gray-500">Espesor mín. molde</dt><dd className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{maquina.moldeEspesorMin ? `${formatearNumero(maquina.moldeEspesorMin, 0)} mm` : '—'}</dd></div>
           <div><dt className="text-gray-400 dark:text-gray-500">Cap. inyección</dt><dd className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{maquina.capacidadInyeccionCm3 ? `${formatearNumero(maquina.capacidadInyeccionCm3, 0)} cm³` : '—'}</dd></div>
           <div><dt className="text-gray-400 dark:text-gray-500">Peso iny. máx.</dt><dd className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{maquina.pesoInyeccionMaxG ? `${formatearNumero(maquina.pesoInyeccionMaxG, 0)} g` : '—'}</dd></div>
           <div><dt className="text-gray-400 dark:text-gray-500">Dist. entre columnas</dt><dd className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{maquina.distanciaEntreColumnasMm ? `${formatearNumero(maquina.distanciaEntreColumnasMm, 0)} mm` : '—'}</dd></div>
@@ -128,7 +132,7 @@ export default function MaquinasDetalle({ id }: Props) {
           Moldes compatibles
           <span className="ml-2 text-xs font-normal text-gray-400">({moldesCompatibles.length})</span>
         </h2>
-        {(!maquina.moldeAnchoMax && !maquina.moldeAltoMax && !maquina.moldeEspesorMax) ? (
+        {(!maquina.moldeAnchoMax && !maquina.moldeAltoMax && !maquina.moldeEspesorMax && !maquina.moldeEspesorMin) ? (
           <p className="text-xs text-gray-400 dark:text-gray-500">Define las dimensiones máximas de molde para calcular compatibilidad.</p>
         ) : moldesCompatibles.length === 0 ? (
           <p className="text-xs text-gray-400 dark:text-gray-500">No hay moldes compatibles con esta máquina.</p>

@@ -40,10 +40,12 @@ export interface Maquina {
   moldeAnchoMax: number         // mm — ancho máx. del molde
   moldeAltoMax: number          // mm — alto máx. del molde
   moldeEspesorMax: number       // mm — espesor/profundidad máx. del molde
+  moldeEspesorMin: number       // mm — espesor mínimo del molde (plato)
   capacidadInyeccionCm3: number // cm³
   pesoInyeccionMaxG: number     // g
   distanciaEntreColumnasMm: number // mm
   aperturaMaximaMm: number      // mm
+  color?: string                // color HSL para el calendario
   operador: string
   horasOperacion: number
   estado: EstadoMaquina
@@ -150,6 +152,7 @@ export interface ConfiguracionPerfil {
   moneda: string
   horasLaboralesDia: number     // default: 8
   diasHabilMes: number          // default: 22
+  modo247: boolean              // default: false — fábrica 24 hrs / 31 días
 }
 
 export interface Perfil {

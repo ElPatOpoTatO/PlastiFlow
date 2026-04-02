@@ -114,6 +114,14 @@ export default function MaterialesFormulario({ id, onGuardado, onCancelado }: Pr
     className: `${cls.input} ${tocados.has(k) && errores[k] ? 'border-red-400 focus:ring-red-400' : ''}`,
   })
 
+  const numBlur = (k: keyof Form, min = 0) => ({
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+      if (e.target.value === '' || isNaN(Number(e.target.value))) {
+        handleChange(k, String(min))
+      }
+    },
+  })
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       {/* Header */}
@@ -152,6 +160,7 @@ export default function MaterialesFormulario({ id, onGuardado, onCancelado }: Pr
             step="0.1"
             placeholder="Ej. 5"
             {...campo('mermaEstandar')}
+            {...numBlur('mermaEstandar')}
           />
           {tocados.has('mermaEstandar') && errores.mermaEstandar
             ? <p className={cls.errorText}>{errores.mermaEstandar}</p>
@@ -165,12 +174,12 @@ export default function MaterialesFormulario({ id, onGuardado, onCancelado }: Pr
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={cls.label}>Inventario actual (kg) <span className="text-red-500">*</span></label>
-            <input type="number" min="0" step="0.1" placeholder="0.0" {...campo('inventarioActual')} />
+            <input type="number" min="0" step="0.1" placeholder="0.0" {...campo('inventarioActual')} {...numBlur('inventarioActual')} />
             {tocados.has('inventarioActual') && errores.inventarioActual && <p className={cls.errorText}>{errores.inventarioActual}</p>}
           </div>
           <div>
             <label className={cls.label}>Punto de reorden (kg) <span className="text-red-500">*</span></label>
-            <input type="number" min="0" step="0.1" placeholder="0.0" {...campo('puntoReorden')} />
+            <input type="number" min="0" step="0.1" placeholder="0.0" {...campo('puntoReorden')} {...numBlur('puntoReorden')} />
             {tocados.has('puntoReorden') && errores.puntoReorden
               ? <p className={cls.errorText}>{errores.puntoReorden}</p>
               : <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Genera alerta cuando el inventario baja de este nivel.</p>

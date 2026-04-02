@@ -18,8 +18,8 @@ export default function Configuracion() {
   const { perfilActivoId, setPerfilActivoId } = useApp()
   const perfiles = useListaPerfiles()
   const config = useConfiguracion(perfilActivoId)
-  const [horasInput, setHorasInput] = useState('')
-  const [diasInput, setDiasInput] = useState('')
+  const [horasInput, setHorasInput] = useState<string | null>(null)
+  const [diasInput, setDiasInput] = useState<string | null>(null)
   const [guardandoConfig, setGuardandoConfig] = useState(false)
 
   const [vistaFormulario, setVistaFormulario] = useState<VistaFormulario>('ninguno')
@@ -356,6 +356,40 @@ export default function Configuracion() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-5">
             Ajustes de producción
           </h2>
+
+          {/* Toggle Modo 24/7 */}
+          <div className="flex items-center justify-between p-4 mb-5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+            <div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">Modo 24/7</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Fábrica opera las 24 horas, los 31 días del mes
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={config.modo247}
+              onClick={async () => {
+                setGuardandoConfig(true)
+                if (config.modo247) {
+                  await actualizarConfiguracion(perfilActivoId, { modo247: false })
+                } else {
+                  await actualizarConfiguracion(perfilActivoId, { modo247: true, horasLaboralesDia: 24, diasHabilMes: 31 })
+                }
+                setGuardandoConfig(false)
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                config.modo247 ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  config.modo247 ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className={cls.label}>Horas laborales por día</label>
@@ -364,17 +398,20 @@ export default function Configuracion() {
                 min="1"
                 max="24"
                 step="0.5"
-                className={cls.input}
-                value={horasInput !== '' ? horasInput : config.horasLaboralesDia}
-                onChange={e => setHorasInput(e.target.value)}
+                disabled={config.modo247}
+                className={`${cls.input} ${config.modo247 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                value={horasInput !== null ? horasInput : String(config.horasLaboralesDia)}
+                onFocus={() => { if (!config.modo247) setHorasInput(String(config.horasLaboralesDia)) }}
+                onChange={e => { if (!config.modo247) setHorasInput(e.target.value) }}
                 onBlur={async () => {
-                  const val = parseFloat(horasInput)
-                  if (!isNaN(val) && val > 0 && val <= 24) {
-                    setGuardandoConfig(true)
-                    await actualizarConfiguracion(perfilActivoId, { horasLaboralesDia: val })
-                    setGuardandoConfig(false)
-                  }
-                  setHorasInput('')
+                  if (config.modo247) return
+                  let val = parseFloat(horasInput ?? '')
+                  if (isNaN(val) || val <= 0) val = 1
+                  if (val > 24) val = 24
+                  setGuardandoConfig(true)
+                  await actualizarConfiguracion(perfilActivoId, { horasLaboralesDia: val })
+                  setGuardandoConfig(false)
+                  setHorasInput(null)
                 }}
               />
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -388,17 +425,20 @@ export default function Configuracion() {
                 min="1"
                 max="31"
                 step="1"
-                className={cls.input}
-                value={diasInput !== '' ? diasInput : config.diasHabilMes}
-                onChange={e => setDiasInput(e.target.value)}
+                disabled={config.modo247}
+                className={`${cls.input} ${config.modo247 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                value={diasInput !== null ? diasInput : String(config.diasHabilMes)}
+                onFocus={() => { if (!config.modo247) setDiasInput(String(config.diasHabilMes)) }}
+                onChange={e => { if (!config.modo247) setDiasInput(e.target.value) }}
                 onBlur={async () => {
-                  const val = parseInt(diasInput)
-                  if (!isNaN(val) && val > 0 && val <= 31) {
-                    setGuardandoConfig(true)
-                    await actualizarConfiguracion(perfilActivoId, { diasHabilMes: val })
-                    setGuardandoConfig(false)
-                  }
-                  setDiasInput('')
+                  if (config.modo247) return
+                  let val = parseInt(diasInput ?? '')
+                  if (isNaN(val) || val <= 0) val = 1
+                  if (val > 31) val = 31
+                  setGuardandoConfig(true)
+                  await actualizarConfiguracion(perfilActivoId, { diasHabilMes: val })
+                  setGuardandoConfig(false)
+                  setDiasInput(null)
                 }}
               />
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">

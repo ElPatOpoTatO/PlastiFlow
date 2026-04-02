@@ -78,14 +78,14 @@ export default function MoldesFormulario({ id, onGuardado, onCancelado }: Props)
       numeroCavidades: cav, tiempoCiclo: tc, pesoPorDisparo: pp,
       id: '', nombre: '', identificador: '', dimensionAncho: 0, dimensionAlto: 0,
       dimensionProfundidad: 0, productos: '', materialesCompatibles: [], notas: '',
-      eficiencia: 0, perfilId: '', fechaCreacion: '', fechaModificacion: '',
+      eficiencia: parseFloat(form.eficiencia) || 0, perfilId: '', fechaCreacion: '', fechaModificacion: '',
     }
     // Material del primer seleccionado, si existe
     const matSeleccionado = materialesSeleccionados.length > 0
       ? materiales.find(m => m.id === materialesSeleccionados[0]) ?? null
       : null
     return calcularPanelMolde(moldeSimulado, config.horasLaboralesDia, config.diasHabilMes, matSeleccionado)
-  }, [form.numeroCavidades, form.tiempoCiclo, form.pesoPorDisparo, materialesSeleccionados, materiales, config])
+  }, [form.numeroCavidades, form.tiempoCiclo, form.pesoPorDisparo, form.eficiencia, materialesSeleccionados, materiales, config])
 
   const handleChange = (campo: keyof Form, valor: string) => {
     const nuevoForm = { ...form, [campo]: valor }
@@ -138,6 +138,14 @@ export default function MoldesFormulario({ id, onGuardado, onCancelado }: Props)
     className: `${cls.input} ${tocados.has(k) && errores[k] ? 'border-red-400 focus:ring-red-400' : ''}`,
   })
 
+  const numBlur = (k: keyof Form, min = 0) => ({
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+      if (e.target.value === '' || isNaN(Number(e.target.value))) {
+        handleChange(k, String(min))
+      }
+    },
+  })
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       <div className="flex items-center gap-3 mb-6">
@@ -171,7 +179,7 @@ export default function MoldesFormulario({ id, onGuardado, onCancelado }: Props)
           </div>
           <div>
             <label className={cls.label}>Nº de cavidades <span className="text-red-500">*</span></label>
-            <input type="number" min="1" step="1" placeholder="Ej. 4" {...inp('numeroCavidades')} />
+            <input type="number" min="1" step="1" placeholder="Ej. 4" {...inp('numeroCavidades')} {...numBlur('numeroCavidades', 1)} />
             {tocados.has('numeroCavidades') && errores.numeroCavidades && <p className={cls.errorText}>{errores.numeroCavidades}</p>}
           </div>
         </div>
@@ -181,15 +189,15 @@ export default function MoldesFormulario({ id, onGuardado, onCancelado }: Props)
           <label className={cls.label}>Dimensiones del molde (mm)</label>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <input type="number" min="0" step="1" placeholder="Ancho" {...inp('dimensionAncho')} />
+              <input type="number" min="0" step="1" placeholder="Ancho" {...inp('dimensionAncho')} {...numBlur('dimensionAncho')} />
               <p className="text-xs text-gray-400 mt-1 text-center">Ancho</p>
             </div>
             <div>
-              <input type="number" min="0" step="1" placeholder="Alto" {...inp('dimensionAlto')} />
+              <input type="number" min="0" step="1" placeholder="Alto" {...inp('dimensionAlto')} {...numBlur('dimensionAlto')} />
               <p className="text-xs text-gray-400 mt-1 text-center">Alto</p>
             </div>
             <div>
-              <input type="number" min="0" step="1" placeholder="Prof." {...inp('dimensionProfundidad')} />
+              <input type="number" min="0" step="1" placeholder="Prof." {...inp('dimensionProfundidad')} {...numBlur('dimensionProfundidad')} />
               <p className="text-xs text-gray-400 mt-1 text-center">Profundidad</p>
             </div>
           </div>
@@ -199,12 +207,12 @@ export default function MoldesFormulario({ id, onGuardado, onCancelado }: Props)
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={cls.label}>Tiempo de ciclo (segundos) <span className="text-red-500">*</span></label>
-            <input type="number" min="0.1" step="0.5" placeholder="Ej. 30" {...inp('tiempoCiclo')} />
+            <input type="number" min="0.1" step="0.5" placeholder="Ej. 30" {...inp('tiempoCiclo')} {...numBlur('tiempoCiclo', 0.1)} />
             {tocados.has('tiempoCiclo') && errores.tiempoCiclo && <p className={cls.errorText}>{errores.tiempoCiclo}</p>}
           </div>
           <div>
-            <label className={cls.label}>Peso por disparo (gramos) <span className="text-red-500">*</span></label>
-            <input type="number" min="0.1" step="0.1" placeholder="Ej. 45.5" {...inp('pesoPorDisparo')} />
+            <label className={cls.label}>Peso por pieza (gramos) <span className="text-red-500">*</span></label>
+            <input type="number" min="0.1" step="0.1" placeholder="Ej. 45.5" {...inp('pesoPorDisparo')} {...numBlur('pesoPorDisparo', 0.1)} />
             {tocados.has('pesoPorDisparo') && errores.pesoPorDisparo && <p className={cls.errorText}>{errores.pesoPorDisparo}</p>}
           </div>
         </div>
@@ -256,7 +264,7 @@ export default function MoldesFormulario({ id, onGuardado, onCancelado }: Props)
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={cls.label}>Eficiencia del molde (%)</label>
-            <input type="number" min="0" max="100" step="1" placeholder="Ej. 95" {...inp('eficiencia')} />
+            <input type="number" min="0" max="100" step="1" placeholder="Ej. 95" {...inp('eficiencia')} {...numBlur('eficiencia')} />
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Rendimiento real vs. capacidad teórica.</p>
           </div>
         </div>

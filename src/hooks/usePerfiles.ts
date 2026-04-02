@@ -16,6 +16,7 @@ const CONFIG_DEFAULT: ConfiguracionPerfil = {
   moneda: 'MXN',
   horasLaboralesDia: 8,
   diasHabilMes: 22,
+  modo247: false,
 }
 
 function ahora(): string {
